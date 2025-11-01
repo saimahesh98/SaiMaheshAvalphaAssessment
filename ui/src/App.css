@@ -1,3 +1,13 @@
+/* Error Styles */
+.input-error {
+  border: 2px solid #e74c3c !important;
+  background: #fff6f6;
+}
+.error-message {
+  color: #e74c3c;
+  font-size: 0.95rem;
+  margin-top: 0.25rem;
+}
 * {
   box-sizing: border-box;
   margin: 0;

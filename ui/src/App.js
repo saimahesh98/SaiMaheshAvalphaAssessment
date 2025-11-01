@@ -1,6 +1,7 @@
 import logo from './logo.png';
 import './App.css';
 import { useState } from 'react';
+import { calculateCommission } from "./apis/CommisionCalcAPIs";
 
 function App() {
   const [formData, setFormData] = useState({
@@ -15,6 +16,27 @@ function App() {
   });
 
   const [isLoading, setIsLoading] = useState(false);
+  const [errors, setErrors] = useState({});
+
+  const validate = (data) => {
+    const maxSales = 100000;
+    const maxAmount = 1000000;
+    const newErrors = {};
+    const localSales = Number(data.localSalesCount);
+    const foreignSales = Number(data.foreignSalesCount);
+    const averageAmount = Number(data.averageSaleAmount);
+
+    if (isNaN(localSales) || localSales < 0 || localSales > maxSales) {
+      newErrors.localSalesCount = `Local Sales Count must be 0 - ${maxSales}`;
+    }
+    if (isNaN(foreignSales) || foreignSales < 0 || foreignSales > maxSales) {
+      newErrors.foreignSalesCount = `Foreign Sales Count must be 0 - ${maxSales}`;
+    }
+    if (isNaN(averageAmount) || averageAmount < 0 || averageAmount > maxAmount) {
+      newErrors.averageSaleAmount = `Average Sale Amount must be 0 - £${maxAmount}`;
+    }
+    return newErrors;
+  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -22,29 +44,41 @@ function App() {
       ...prev,
       [name]: value
     }));
+    setErrors(prev => ({ ...prev, [name]: undefined }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const validationErrors = validate(formData);
+    setErrors({});
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
+      return;
+    }
+    const localSales = Number(formData.localSalesCount);
+    const foreignSales = Number(formData.foreignSalesCount);
+    const averageAmount = Number(formData.averageSaleAmount);
+    if (localSales === 0 && foreignSales === 0 && averageAmount === 0) {
+      setErrors({ general: "All values cannot be zero. Please enter at least one non-zero value." });
+      return;
+    }
     setIsLoading(true);
-    
-    // TODO: Replace with actual API call to backend
-    setTimeout(() => {
-      // Mock calculation for now
-      const localCommission = parseFloat(formData.localSalesCount) * parseFloat(formData.averageSaleAmount) * 0.20;
-      const foreignCommission = parseFloat(formData.foreignSalesCount) * parseFloat(formData.averageSaleAmount) * 0.35;
-      const avalphaTechnologiesTotal = localCommission + foreignCommission;
-      
-      const competitorLocal = parseFloat(formData.localSalesCount) * parseFloat(formData.averageSaleAmount) * 0.02;
-      const competitorForeign = parseFloat(formData.foreignSalesCount) * parseFloat(formData.averageSaleAmount) * 0.0755;
-      const competitorTotal = competitorLocal + competitorForeign;
-      
-      setResults({
-        avalphaTechnologiesCommission: avalphaTechnologiesTotal.toFixed(2),
-        competitorCommission: competitorTotal.toFixed(2)
+    try {
+      const data = await calculateCommission({
+        localSalesCount: localSales,
+        foreignSalesCount: foreignSales,
+        averageSaleAmount: averageAmount,
       });
+      setResults({
+        avalphaTechnologiesCommission:
+          data.avalphaTechnologiesCommissionAmount.toFixed(2),
+        competitorCommission: data.competitorCommissionAmount.toFixed(2),
+      });
+    } catch (error) {
+      setErrors({ api: error.message });
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
   return (
@@ -72,20 +106,28 @@ function App() {
                   onChange={handleInputChange}
                   placeholder="Enter number of local sales"
                   required
+                  className={errors.localSalesCount ? "input-error" : ""}
                 />
+                {errors.localSalesCount && (
+                  <div className="error-message">{errors.localSalesCount}</div>
+                )}
               </div>
 
               <div className="form-group">
                 <label htmlFor="foreignSalesCount">Foreign Sales Count</label>
-                <input 
-                  type="number" 
+                <input
+                  type="number"
                   id="foreignSalesCount"
                   name="foreignSalesCount"
                   value={formData.foreignSalesCount}
                   onChange={handleInputChange}
                   placeholder="Enter number of foreign sales"
                   required
+                  className={errors.foreignSalesCount ? "input-error" : ""}
                 />
+                {errors.foreignSalesCount && (
+                  <div className="error-message">{errors.foreignSalesCount}</div>
+                )}
               </div>
               
               <div className="form-group">
@@ -99,7 +141,11 @@ function App() {
                   onChange={handleInputChange}
                   placeholder="Enter average sale amount"
                   required
+                  className={errors.averageSaleAmount ? "input-error" : ""}
                 />
+                {errors.averageSaleAmount && (
+                  <div className="error-message">{errors.averageSaleAmount}</div>
+                )}
               </div>
 
               <button 
@@ -109,6 +155,9 @@ function App() {
               >
                 {isLoading ? 'Calculating...' : 'Calculate Commission'}
               </button>
+              {errors.general && (
+                <div className="error-message" style={{ textAlign: 'center' }}>{errors.general}</div>
+              )}
             </form>
           </div>
 
