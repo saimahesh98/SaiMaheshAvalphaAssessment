@@ -8,12 +8,37 @@ namespace AvalphaTechnologies.CommissionCalculator.Controllers
     {
         [ProducesResponseType(typeof(CommissionCalculationResponse), 200)]
         [HttpPost]
-        public IActionResult Calculate(CommissionCalculationRequest calculationRequest)
+        public IActionResult Calculate([FromBody] CommissionCalculationRequest calculationRequest)
         {
-            return Ok(new CommissionCalculationResponse() { 
-                AvalphaTechnologiesCommissionAmount = 999,
-                CompetitorCommissionAmount = 100
-            });
+            // Input validation
+            if (calculationRequest.LocalSalesCount < 0 || calculationRequest.ForeignSalesCount < 0 || calculationRequest.AverageSaleAmount < 0)
+            {
+                return BadRequest("Values must be non-negative.");
+            }
+
+            if (calculationRequest.LocalSalesCount > 100000 || calculationRequest.ForeignSalesCount > 100000 || calculationRequest.AverageSaleAmount > 1000000)
+            {
+                return BadRequest("Values are unrealistically high.");
+            }
+
+            // Avalpha commissions
+            decimal avalphaLocal = 0.20m * calculationRequest.LocalSalesCount * calculationRequest.AverageSaleAmount;
+            decimal avalphaForeign = 0.35m * calculationRequest.ForeignSalesCount * calculationRequest.AverageSaleAmount;
+            decimal avalphaTotal = avalphaLocal + avalphaForeign;
+
+            // Competitor commissions
+            decimal competitorLocal = 0.02m * calculationRequest.LocalSalesCount * calculationRequest.AverageSaleAmount;
+            decimal competitorForeign = 0.0755m * calculationRequest.ForeignSalesCount * calculationRequest.AverageSaleAmount;
+            decimal competitorTotal = competitorLocal + competitorForeign;
+
+            // Return structured response
+            var response = new CommissionCalculationResponse
+            {
+                AvalphaTechnologiesCommissionAmount = avalphaTotal,
+                CompetitorCommissionAmount = competitorTotal
+            };
+
+            return Ok(response);
         }
     }
 
@@ -27,7 +52,6 @@ namespace AvalphaTechnologies.CommissionCalculator.Controllers
     public class CommissionCalculationResponse
     {
         public decimal AvalphaTechnologiesCommissionAmount { get; set; }
-
         public decimal CompetitorCommissionAmount { get; set; }
     }
 }
